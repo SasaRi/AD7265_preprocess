@@ -21,7 +21,7 @@
 #include <power_metering.h>
 #include <lib_dsp.h>
 
-#define FS 41000     // sampling frequency of AD7265 / 5 (fs = 205 k Hz with f_slck = 8 MHz)
+#define FS 41000     // sampling frequency of AD7265 / 5 (fs = 205 kHz with f_slck = 8 MHz)
 
 #define HYSTERESIS_SIZE 5
 
@@ -194,8 +194,7 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
     int num_samples = 0, counter = 0;
     int * movable p = &buffer_data[0];
     int signals_sampled = 0;
-    int help[1200],helpc = 0;
-    int pup[10000];
+    int flag = 0;
 
     select
     {
@@ -208,14 +207,15 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
     while (1)
     {
         {sample_a, sample_b} = adc_if.get_temperature();
-//        if (ticks < 10000)
-//            pup[ticks] = sample_b;
 
         ticks++;
 //        xscope_int(SAMPLE_B, sample_b);
 
+        if(sample_b == 0)
+            flag = 1;
+
         // sampling frequency from 250 KHz to 50 kHz
-        if (ticks % 5 == 0)
+        if (flag == 1 && ticks % 5 == 0)
         {
             /* Preprocessing idea
              * Based on the frequency, expected number of samples per one period is calculated
@@ -236,9 +236,6 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
              *      after that number, take every second sample
              */
 
-            if(helpc < num_samples)
-                help[helpc++] = sample_b;
-
             if ((num_samples+1) / N_FFT_POINTS >= 2)
             {
                 if (ticks % 2 == 0 && counter < N_FFT_POINTS)
@@ -249,12 +246,11 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
             }
             else
             {
-                int help_a = (num_samples + 1) / 2;
-                int help_b = N_FFT_POINTS - help_a;
+                int help_a = N_FFT_POINTS - (num_samples +1) / 2;
 
-                if ((additional <= 2 * help_b - 1) || (ticks % 2 == 0 && counter < N_FFT_POINTS))
+                if ((additional <= 2 * help_a - 1) || (ticks % 2 == 0 && counter < N_FFT_POINTS))
                 {
-                    if(additional <= 2 * help_b - 1)
+                    if(additional <= 2 * help_a - 1)
                         additional++;
 
                     p[signals_sampled*N_FFT_POINTS + counter++] = Q16((float)sample_b/MAX_ADC_VALUE*REFERENCE_INPUT);
@@ -273,16 +269,6 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
         // all three phases sampled and buffered
         if(signals_sampled == NUM_CHANNELS)
         {
-//            signals_sampled = 0;
-//            for(int y = 0; y < num_samples; y++)
-//            {
-////                printf("%d = %d\n", y, pup[y]);
-//                if (y < N_FFT_POINTS)
-//                    printf("%d = %d %d\n", y, help[y], p[signals_sampled*N_FFT_POINTS + y]);
-//                else
-//                    printf("%d = %d\n", y, help[y]);
-//            }
-
             swap_if.swap(p);
             signals_sampled = 0;
         }
