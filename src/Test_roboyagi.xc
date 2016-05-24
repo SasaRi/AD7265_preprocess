@@ -21,7 +21,7 @@
 #include <power_metering.h>
 #include <lib_dsp.h>
 
-#define FS 41000     // sampling frequency of AD7265 / 5 (fs = 205 kHz with f_slck = 8 MHz)
+#define FS 205000     // sampling frequency of AD7265 / 5 (fs = 205 kHz with f_slck = 8 MHz)
 
 #define HYSTERESIS_SIZE 5
 
@@ -177,7 +177,7 @@ void frequency_measurement(client interface ADCInterface adc_if, chanend c)
     CHECK_FREQ_MAX(frequency);
 
     c <: frequency;
-//    printf("Frequency = %.5f Hz, DC offset = %d Num of periods = %d\n", frequency, dc_offset, num_periods-1);
+    printf("Frequency = %.5f Hz, DC offset = %d Num of periods = %d\n", frequency, dc_offset, num_periods-1);
 }
 
 /* Client for three phases
@@ -194,7 +194,6 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
     int num_samples = 0, counter = 0;
     int * movable p = &buffer_data[0];
     int signals_sampled = 0;
-    int flag = 0;
 
     select
     {
@@ -211,12 +210,9 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
         ticks++;
 //        xscope_int(SAMPLE_B, sample_b);
 
-        if(sample_b == 0)
-            flag = 1;
-
         // sampling frequency from 250 KHz to 50 kHz
-        if (flag == 1 && ticks % 5 == 0)
-        {
+//        if (ticks % 5 == 0)
+//        {
             /* Preprocessing idea
              * Based on the frequency, expected number of samples per one period is calculated
              * data is put into the buffer by applying the decimation algorithm
@@ -264,7 +260,7 @@ void adc_client(client interface ADCInterface adc_if, client interface SwapBuffe
                 additional = 0;
                 signals_sampled++;
             }
-        }
+//        }
 
         // all three phases sampled and buffered
         if(signals_sampled == NUM_CHANNELS)
